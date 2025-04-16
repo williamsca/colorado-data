@@ -40,7 +40,7 @@ try:
     poll_interval = 15
     
     print("Waiting for Textract job to complete...")
-    while not job.is_complete() and wait_time < max_wait_time:
+    while job.check_status() != "SUCCEEDED" and wait_time < max_wait_time:
         print(f"Waiting... ({wait_time} seconds elapsed)")
         time.sleep(poll_interval)
         wait_time += poll_interval
