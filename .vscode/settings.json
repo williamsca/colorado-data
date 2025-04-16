@@ -1,0 +1,4 @@
+{
+    "python.defaultInterpreterPath": "/home/colin/textract-env/bin/python3.12",
+    "python.terminal.activateEnvironment": true
+}
