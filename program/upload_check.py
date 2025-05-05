@@ -4,25 +4,25 @@ from botocore.exceptions import ClientError
 import os
 import time
 
-def upload_mill_levy_pdfs():
-    """Upload all mill levy PDFs to S3 bucket."""
+def upload_pdfs(local_dir = "mill-levies"):
+    """Upload PDFs to S3 bucket."""
     current_dir = Path(__file__).resolve().parent.parent
-    mill_levy_dir = current_dir / "data" / "annual-reports" / "mill-levies"
+    target_dir = current_dir / "data" / "annual-reports" / local_dir
     
     # Create directory if it doesn't exist
-    mill_levy_dir.mkdir(exist_ok=True, parents=True)
+    target_dir.mkdir(exist_ok=True, parents=True)
     
     s3_bucket = "colorado-data-bucket"
     s3_client = boto3.client('s3')
     
     # Get list of all mill levy PDFs
-    pdf_files = list(mill_levy_dir.glob("*.pdf"))
+    pdf_files = list(target_dir.glob("*.pdf"))
     
     if not pdf_files:
-        print(f"No mill levy PDFs found in {mill_levy_dir}")
+        print(f"No {local_dir} PDFs found in {target_dir}")
         return
     
-    print(f"Found {len(pdf_files)} mill levy PDFs")
+    print(f"Found {len(pdf_files)} {local_dir} PDFs")
     
     # Track successful and failed uploads
     successful = []
@@ -30,7 +30,7 @@ def upload_mill_levy_pdfs():
     
     for pdf_path in pdf_files:
         year = pdf_path.stem  # Get the year from the filename
-        s3_key = f"mill-levies/{year}.pdf"
+        s3_key = f"{local_dir}/{year}.pdf"
         s3_uri = f"s3://{s3_bucket}/{s3_key}"
         
         try:
@@ -83,8 +83,8 @@ def upload_mill_levy_pdfs():
     
     # List objects in bucket
     try:
-        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix="mill-levies/")
-        print(f"\nObjects in {s3_bucket}/mill-levies/:")
+        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=f"{local_dir}/")
+        print(f"\nObjects in {s3_bucket}/{local_dir}/:")
         if 'Contents' in response:
             for obj in response['Contents']:
                 print(f"  {obj['Key']} ({obj['Size']} bytes)")
@@ -94,4 +94,4 @@ def upload_mill_levy_pdfs():
         print(f"Error listing objects: {e}")
 
 if __name__ == "__main__":
-    upload_mill_levy_pdfs()
+    upload_pdfs()

@@ -7,7 +7,6 @@ from pathlib import Path
 
 def get_annual_report_path(year):
     """Get the path to the annual report PDF for a given year."""
-    # Search for PDFs with the year in the name in the annual-reports directory
     data_dir = Path("data/annual-reports")
     
     # First try to find an exact match

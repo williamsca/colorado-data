@@ -12,8 +12,8 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
 ### 1. Manual Page Identification
 - **Input**: Annual reports in `data/annual-reports/`
 - **Process**: 
-  - Manually identify the pages containing mill levy tables in each report
-  - Record page numbers in `data/annual-reports/mill-levies/mill-levy-pages.csv`
+  - Manually identify the pages containing mill levy and assessed valuation tables in each report
+  - Record page numbers in `data/annual-reports/mill-levies/mill-levy-pages.csv` and `data/annual-reports/county-valuation/county-valuation-pages.csv`
   - Format: year, page (can include ranges like "404-405" or multiple pages separated by commas)
 - **Output**: CSV file with year and page mappings
 - **Status**: Manual step required for accurate page identification
@@ -21,7 +21,7 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
 ### 2. PDF Page Extraction
 - **Input**: 
   - Annual reports in `data/annual-reports/`
-  - Page mapping from `mill-levy-pages.csv`
+  - Page mapping from `mill-levy-pages.csv` and `county-valuation-pages.csv`
 - **Process**: 
   - `process_pages.py` reads the CSV and processes each entry
   - For each year/page combination:
@@ -43,7 +43,7 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
 ### 4. Table Extraction with Amazon Textract
 - **Input**: PDFs in S3 bucket
 - **Process**:
-  - `extract_tables.py` processes each PDF with Amazon Textract
+  - `ocr_tables.py` processes each PDF with Amazon Textract
   - Uses asynchronous document analysis with TABLES and FORMS features
   - Monitors job status with appropriate timeout handling (15-minute maximum)
   - Skips files that have already been processed

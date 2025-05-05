@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 import pytesseract
 
-def extract_and_save_mill_levy_page(pdf_path, page_num, verbose=True):
+def extract_and_save_page(pdf_path, page_num, verbose=True, dir = "mill-levies"):
     """
     Extract text from a PDF page, check if it contains mill levy information,
     and if so, save it as a properly oriented single-page PDF.
@@ -32,7 +32,7 @@ def extract_and_save_mill_levy_page(pdf_path, page_num, verbose=True):
     year = year_match.group(1)
 
     # Create mill-levies directory if it doesn't exist
-    output_dir = pdf_path.parent / "mill-levies"
+    output_dir = pdf_path.parent / dir
     output_dir.mkdir(exist_ok=True, parents=True)
 
     # Handle suffix for multi-page tables
@@ -44,7 +44,7 @@ def extract_and_save_mill_levy_page(pdf_path, page_num, verbose=True):
 
     # Skip if output file already exists
     if output_path.exists():
-        print(f"Mill levy page for {year}{suffix} already exists at {output_path}")
+        print(f"{dir} page for {year}{suffix} already exists at {output_path}")
         return True
 
     # Create a temporary directory for working files
@@ -146,51 +146,12 @@ def extract_and_save_mill_levy_page(pdf_path, page_num, verbose=True):
                 "-f", str(page_num),  # First page
                 "-l", str(page_num),  # Last page
                 str(pdf_path),
-                str(output_path.with_suffix('.pdf'))  # pdftocairo adds .pdf
+                str(output_path.with_suffix('.pdf'))
             ]
             subprocess.run(extract_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        print(f"✓ Mill levy page saved to {output_path}")
+        print(f"✓ {dir} page saved to {output_path}")
         return True
-
-def process_pdf(pdf_path):
-    """
-    Process a PDF file to find the mill levy table by checking the last 30% of pages.
-    
-    Args:
-        pdf_path (str or Path): Path to the PDF file
-        
-    Returns:
-        bool: True if a mill levy page was found and saved, False otherwise
-    """
-    pdf_path = Path(pdf_path)
-    print(f"Looking for mill levy table in {pdf_path.name}...")
-    
-    # Get total number of pages
-    page_count_cmd = ["pdfinfo", str(pdf_path)]
-    page_info = subprocess.check_output(page_count_cmd, universal_newlines=True)
-    page_count_match = re.search(r'Pages:\s+(\d+)', page_info)
-    
-    if not page_count_match:
-        print(f"Could not determine page count for {pdf_path.name}")
-        return False
-        
-    total_pages = int(page_count_match.group(1))
-    print(f"Total pages: {total_pages}")
-    
-    # Only check the last 30% of pages (tables are usually at the end)
-    start_page = max(1, total_pages - int(total_pages * 0.3))
-    
-    # Process pages in reverse order
-    for page_num in range(total_pages, start_page - 1, -1):
-        print(f"Checking page {page_num} of {total_pages}...")
-        
-        # Try to extract and save mill levy page
-        if extract_and_save_mill_levy_page(pdf_path, page_num, verbose=False):
-            return True
-    
-    print(f"Could not find mill levy table in {pdf_path.name}")
-    return False
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -202,10 +163,9 @@ if __name__ == "__main__":
         
     pdf_path = sys.argv[1]
     
-    if len(sys.argv) == 2:
-        # No page specified, process the PDF
-        process_pdf(pdf_path)
+    if len(sys.argv) < 4:
+        print("Specify a page number and target directory.")
     else:
-        # Specific page number provided
         page_num = int(sys.argv[2])
-        extract_and_save_mill_levy_page(pdf_path, page_num)
+        target_dir = sys.argv[3]
+        extract_and_save_page(pdf_path, page_num, dir = target_dir)
