@@ -29,7 +29,7 @@ mill_levy_files <- list.files(
   full.names = TRUE
 )
 
-file_path <- mill_levy_files[1]
+file_path <- mill_levy_files[2]
 
 # 2. Create a function to process each file
 process_mill_levy_file <- function(file_path) {
@@ -39,13 +39,17 @@ process_mill_levy_file <- function(file_path) {
   dt <- as.data.table(read_xlsx(file_path, col_names = TRUE))
   setnames(dt, tolower(gsub(" ", "_", names(dt))))
 
-  if (!any(grepl("county", names(dt)))) {
-    warning(paste("No county column found in", filename))
-    print(paste0("Columns in data: ", names(dt)))
-    return(NULL)
+  if (!"county" %in% names(dt)) {
+    if (names(dt)[1] == "...1") {
+      setnames(dt, names(dt)[1], "county")
+    } else {
+      warning(paste("No county column found in", filename))
+      print(paste0("Columns in data: ", names(dt)))
+      return(NULL)
+    }
   }
 
-  if (!any(grepl("county_mill_levy", names(dt)))) {
+  if (!"county_mill_levy" %in% names(dt)) {
     warning(paste("No mill levy column found in", filename))
     return(NULL)
   }
@@ -58,13 +62,26 @@ process_mill_levy_file <- function(file_path) {
   dt[, county_mill_levy := as.numeric(
     gsub(",|\\$|\\s", "", county_mill_levy))]
 
+  if (nrow(dt[county_mill_levy > 50]) > 0) {
+    warning(paste("High mill levy values found in", filename))
+    print(dt[county_mill_levy > 50])
+  }
+
   dt[, year := year]
 
   dt <- dt[, .(county, county_mill_levy, year)]
 }
 
 # 3. Process all files and combine results
-all_mill_levies <- rbindlist(
+l_mill_levies <- list()
+for (i in seq_along(mill_levy_files)) {
+  file_path <- mill_levy_files[i]
+  process_mill_levy_file(file_path)
+  l_mill_levies[[i]] <- process_mill_levy_file(file_path)
+}
+
+
+dt_levies <- rbindlist(
   lapply(mill_levy_files, process_mill_levy_file),
   use.names = TRUE,
   fill = TRUE
