@@ -58,9 +58,8 @@ process_mill_levy_file <- function(file_path) {
 
   dt <- dt[!grepl("(?i)(total|state|average)", county)]
 
-  # TODO: check that ',' and '.' are used correctly in raw data
-  dt[, county_mill_levy := as.numeric(
-    gsub(",|\\$|\\s", "", county_mill_levy))]
+  dt[, county_mill_levy := gsub(",", ".", county_mill_levy)]
+  dt[, county_mill_levy := as.numeric(county_mill_levy)]
 
   if (nrow(dt[county_mill_levy > 50]) > 0) {
     warning(paste("High mill levy values found in", filename))
@@ -73,24 +72,18 @@ process_mill_levy_file <- function(file_path) {
 }
 
 # 3. Process all files and combine results
-l_mill_levies <- list()
-for (i in seq_along(mill_levy_files)) {
-  file_path <- mill_levy_files[i]
-  process_mill_levy_file(file_path)
-  l_mill_levies[[i]] <- process_mill_levy_file(file_path)
-}
-
-
 dt_levies <- rbindlist(
   lapply(mill_levy_files, process_mill_levy_file),
   use.names = TRUE,
   fill = TRUE
 )
 
+dt_levies <- dt_levies[!is.na(county) & !is.na(county_mill_levy)]
+
 # 4. Validate the data
 # Check for missing values
-missing_counties <- all_mill_levies[is.na(county), .N]
-missing_levies <- all_mill_levies[is.na(county_mill_levy), .N]
+missing_counties <- dt_levies[is.na(county), .N]
+missing_levies <- dt_levies[is.na(county_mill_levy), .N]
 
 if (missing_counties > 0) {
   warning(paste("Missing county names:", missing_counties))
@@ -101,11 +94,9 @@ if (missing_levies > 0) {
 }
 
 # Check for duplicates
-duplicate_entries <- all_mill_levies[, .N, by = .(county, year)][N > 1]
-if (nrow(duplicate_entries) > 0) {
-  warning(paste("Found", nrow(duplicate_entries), "duplicate entries"))
-  print(duplicate_entries)
+if (uniqueN(dt_levies[, .(county, year)]) != nrow(dt_levies)) {
+  warning("Mill levy data contains duplicates")
 }
 
-# 5. Save the combined data
-saveRDS(all_mill_levies, file = here("derived", "mill-levies.Rds"))
+# Export ----
+saveRDS(dt_levies, file = here("derived", "mill-levies.Rds"))
