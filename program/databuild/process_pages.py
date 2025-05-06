@@ -16,7 +16,7 @@ def get_annual_report_path(year):
     print(f"Warning: Could not find annual report for {year}")
     return None
 
-def process_mill_levy_pages(csv_path):
+def process_pages(csv_path):
     """
     Process the pages CSV file and extract target tables for each year.
     
@@ -29,7 +29,14 @@ def process_mill_levy_pages(csv_path):
         print(f"Error: File not found - {csv_path}")
         return
     
-    print(f"Processing mill levy pages from {csv_path}")
+    print(f"Processing pages from {csv_path}")
+    
+    # Extract directory name from CSV filename
+    dir_name = csv_path.stem
+    if "-pages" in dir_name:
+        dir_name = dir_name.replace("-pages", "")
+    
+    print(f"Output directory will be: data/{dir_name}")
     
     with open(csv_path, 'r') as f:
         csv_reader = csv.DictReader(f)
@@ -37,9 +44,13 @@ def process_mill_levy_pages(csv_path):
         for row in csv_reader:
             year = row.get('year')
             pages = row.get('page')
+            orientation = row.get('orientation')
             
             if not year or not pages:
                 continue
+
+            if not orientation:
+                orientation = 0
             
             try:
                 year = year.strip()
@@ -62,13 +73,15 @@ def process_mill_levy_pages(csv_path):
                             # Call extract_target_table_pdf.py with the page number and suffix
                             cmd = [
                                 "python3", 
-                                "program/extract_target_table_pdf.py", 
+                                "program/databuild/extract_target_table_pdf.py", 
                                 str(annual_report_path), 
                                 str(page_num),
-                                suffix
+                                suffix,
+                                dir_name,
+                                str(orientation)
                             ]
                             
-                            print(f"Extracting {year} page {page_num} with suffix '{suffix}'")
+                            print(f"Extracting {year} page {page_num} with suffix '{suffix}' to {dir_name}/")
                             subprocess.run(cmd)
                     else:
                         # Single page
@@ -79,13 +92,15 @@ def process_mill_levy_pages(csv_path):
                         
                         cmd = [
                             "python3", 
-                            "program/extract_target_table_pdf.py", 
+                            "program/databuild/extract_target_table_pdf.py", 
                             str(annual_report_path), 
                             str(page_num),
-                            suffix
+                            suffix,
+                            dir_name,
+                            str(orientation)
                         ]
                         
-                        print(f"Extracting {year} page {page_num} with suffix '{suffix}'")
+                        print(f"Extracting {year} page {page_num} with suffix '{suffix}' to {dir_name}/")
                         subprocess.run(cmd)
                         
             except Exception as e:
@@ -95,6 +110,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         csv_path = sys.argv[1]
     else:
-        csv_path = "data/annual-reports/mill-levies/mill-levy-pages.csv"
+        print("Usage: python process_pages.py <csv_file_path>")
+        print("Example: python process_pages.py crosswalk/county-valuation-pages.csv")
+        sys.exit(1)
     
-    process_mill_levy_pages(csv_path)
+    process_pages(csv_path)

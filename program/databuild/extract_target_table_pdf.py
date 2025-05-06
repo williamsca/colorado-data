@@ -6,18 +6,20 @@ from pathlib import Path
 from PIL import Image
 import pytesseract
 
-def extract_and_save_page(pdf_path, page_num, verbose=True, dir = "mill-levies"):
+def extract_and_save_page(pdf_path, page_num, verbose=True, dir_name="mill-levies", orientation=0, suffix=""):
     """
-    Extract text from a PDF page, check if it contains mill levy information,
-    and if so, save it as a properly oriented single-page PDF.
+    Extract text from a PDF page and save it as a properly oriented single-page PDF.
     
     Args:
         pdf_path (str or Path): Path to the PDF file
         page_num (int): Page number to extract (1-indexed)
         verbose (bool): Whether to print detailed progress messages
+        dir_name (str): Directory name where to save the extracted page
+        orientation (int): Rotation angle in degrees
+        suffix (str): Suffix to append to the year for multi-page tables
         
     Returns:
-        bool: True if mill levy page was found and saved, False otherwise
+        bool: True if page was found and saved, False otherwise
     """
     pdf_path = Path(pdf_path)
     if verbose:
@@ -31,20 +33,18 @@ def extract_and_save_page(pdf_path, page_num, verbose=True, dir = "mill-levies")
 
     year = year_match.group(1)
 
-    # Create mill-levies directory if it doesn't exist
-    output_dir = pdf_path.parent / dir
+    # Create output directory structure
+    data_dir = Path("data")
+    data_dir.mkdir(exist_ok=True, parents=True)
+    
+    output_dir = data_dir / dir_name
     output_dir.mkdir(exist_ok=True, parents=True)
-
-    # Handle suffix for multi-page tables
-    suffix = ""
-    if len(sys.argv) > 3:  # If a suffix is provided
-        suffix = sys.argv[3]
 
     output_path = output_dir / f"{year}{suffix}.pdf"
 
     # Skip if output file already exists
     if output_path.exists():
-        print(f"{dir} page for {year}{suffix} already exists at {output_path}")
+        print(f"{dir_name} page for {year}{suffix} already exists at {output_path}")
         return True
 
     # Create a temporary directory for working files
@@ -82,32 +82,26 @@ def extract_and_save_page(pdf_path, page_num, verbose=True, dir = "mill-levies")
 
         # Try different orientations for better results
         best_text = ""
-        best_orientation = 0
+        best_orientation = orientation
         max_text_len = 0
 
-        # Try pytesseract with different page segmentation modes and orientations
-        for orientation in [0]:  # , 90, 180, 270
-            # Rotate the image if needed
-            if orientation > 0:
-                rotated_img = img.rotate(orientation, expand=True)
-            else:
-                rotated_img = img
+        if orientation > 0:
+            rotated_img = img.rotate(orientation, expand=True)
+        else:
+            rotated_img = img
 
-            # Try with different page segmentation modes
-            for psm in [6]:  # Assume single uniform block
-                config = f'--psm {psm}'
-                text = pytesseract.image_to_string(rotated_img, config=config)
+        # Try with different page segmentation modes
+        for psm in [6]:  # Assume single uniform block
+            config = f'--psm {psm}'
+            text = pytesseract.image_to_string(rotated_img, config=config)
 
-                # Keep the result with the most characters
-                if len(text) > max_text_len:
-                    max_text_len = len(text)
-                    best_text = text
-                    best_orientation = orientation
-                    if verbose:
-                        print(f"Found better text with orientation {orientation}° and PSM {psm}")
-
-        # Convert the text to lowercase for case-insensitive matching
-        lower_text = best_text.lower()
+            # Keep the result with the most characters
+            if len(text) > max_text_len:
+                max_text_len = len(text)
+                best_text = text
+                best_orientation = orientation
+                if verbose:
+                    print(f"Found better text with orientation {orientation}° and PSM {psm}")
 
         # Create temporary PDF with correct orientation
         if best_orientation != 0:
@@ -150,22 +144,26 @@ def extract_and_save_page(pdf_path, page_num, verbose=True, dir = "mill-levies")
             ]
             subprocess.run(extract_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        print(f"✓ {dir} page saved to {output_path}")
+        print(f"✓ {dir_name} page saved to {output_path}")
         return True
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print("Usage:")
-        print("  1. Process all pages: python extract_target_table_pdf.py <pdf_path>")
-        print("  2. Process a specific page: python extract_target_table_pdf.py <pdf_path> <page_number> [suffix]")
-        print("     suffix: optional character to append to the year (e.g. 'a', 'b') for multi-page tables")
+        print("  python extract_target_table_pdf.py <pdf_path> <page_number> [suffix] [dir_name] [orientation]")
+        print("  pdf_path: Path to the PDF file")
+        print("  page_number: Page number to extract (1-indexed)")
+        print("  suffix: Optional character to append to the year (e.g. 'a', 'b') for multi-page tables")
+        print("  dir_name: Name of the directory to save the extracted page (default: 'mill-levies')")
+        print("  orientation: Rotation angle in degrees (default: 0)")
         sys.exit(1)
         
     pdf_path = sys.argv[1]
+    page_num = int(sys.argv[2])
     
-    if len(sys.argv) < 4:
-        print("Specify a page number and target directory.")
-    else:
-        page_num = int(sys.argv[2])
-        target_dir = sys.argv[3]
-        extract_and_save_page(pdf_path, page_num, dir = target_dir)
+    # Parse optional arguments
+    suffix = sys.argv[3] if len(sys.argv) > 3 else ""
+    dir_name = sys.argv[4] if len(sys.argv) > 4 else "mill-levies"
+    orientation = int(sys.argv[5]) if len(sys.argv) > 5 else 0
+    
+    extract_and_save_page(pdf_path, page_num, dir_name=dir_name, orientation=orientation, suffix=suffix)

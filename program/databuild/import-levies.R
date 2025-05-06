@@ -60,7 +60,7 @@ process_mill_levy_file <- function(file_path) {
   }
 
   dt[, county_mill_levy := gsub(",", ".", county_mill_levy)]
-  dt[, county_mill_levy := as.numeric(county_mill_levy)]
+  dt[, county_mill_levy := abs(as.numeric(county_mill_levy))]
 
   if (nrow(dt[county_mill_levy > 50]) > 0) {
     warning(paste("High mill levy values found in", filename))

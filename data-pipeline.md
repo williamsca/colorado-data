@@ -13,9 +13,9 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
 - **Input**: Annual reports in `data/annual-reports/`
 - **Process**: 
   - Manually identify the pages containing mill levy and assessed valuation tables in each report
-  - Record page numbers in `data/annual-reports/mill-levies/mill-levy-pages.csv` and `crosswalk/county-valuation-pages.csv`
+  - Record page numbers in `crosswalk/mill-levy-pages.csv` and `crosswalk/county-valuation-pages.csv`
   - Format: year, page (can include ranges like "404-405" or multiple pages separated by commas)
-- **Output**: CSV file with year and page mappings
+- **Output**: CSV file with year, page mappings, and page orientation
 - **Status**: Manual step required for accurate page identification
 
 ### 2. PDF Page Extraction
@@ -28,16 +28,16 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
     - Locate the appropriate annual report PDF
     - Extract the specified page(s)
     - Handle multi-page tables with appropriate page suffixes ('a', 'b', etc.)
-- **Output**: Individual PDF pages saved to `data/annual-reports/mill-levies/[YEAR][SUFFIX].pdf`
+- **Output**: Individual PDF pages saved to `data/annual-reports/[dir]/[YEAR][SUFFIX].pdf`
 - **Tools**: `process_pages.py` and `extract_target_table_pdf.py`
 
 ### 3. S3 Upload
-- **Input**: Extracted table PDFs from `data/annual-reports/mill-levies/`
+- **Input**: Extracted table PDFs from `data/annual-reports/[dir]/`
 - **Process**:
   - `upload_check.py` uploads each PDF to an S3 bucket
   - Checks if file already exists before uploading
   - Implements retry logic with exponential backoff for upload failures
-- **Output**: PDFs stored in S3 bucket with consistent naming (`mill-levies/[YEAR].pdf`)
+- **Output**: PDFs stored in S3 bucket with consistent naming (`[dir]/[YEAR].pdf`)
 - **Tools**: AWS SDK (boto3)
 
 ### 4. Table Extraction with Amazon Textract
@@ -47,11 +47,11 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
   - Uses asynchronous document analysis with TABLES and FORMS features
   - Monitors job status with appropriate timeout handling (15-minute maximum)
   - Skips files that have already been processed
-- **Output**: Tables exported to Excel files in `derived/mill-levies/[YEAR].xlsx`
+- **Output**: Tables exported to Excel files in `derived/[dir]/[YEAR].xlsx`
 - **Tools**: Amazon Textract API via Textractor Python package
 
 ### 5. Data Processing and Analysis
-- **Input**: Excel files from `derived/mill-levies/`
+- **Input**: Excel files from `derived/[dir]/`
 - **Process**: 
   - Clean and structure the data in R
   - Validate data format consistency across years

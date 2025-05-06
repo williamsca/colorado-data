@@ -7,31 +7,36 @@ import boto3
 import pandas as pd
 import sys
 
-def extract_tables(dir):
-    """Extract tables from mill levy PDFs using Amazon Textract."""
+def extract_tables(dir_name):
+    """
+    Extract tables from PDFs using Amazon Textract.
+    
+    Args:
+        dir_name (str): Name of the directory containing PDFs in S3 and where to save results
+    """
     # Set paths
-    current_dir = Path(__file__).resolve().parent.parent
-    output_dir = current_dir / "derived" / dir
+    project_root = Path(__file__).resolve().parent.parent.parent
+    output_dir = project_root / "derived" / dir_name
     output_dir.mkdir(exist_ok=True, parents=True)
     
     s3_bucket = "colorado-data-bucket"
     s3_client = boto3.client('s3')
     
-    # Get list of all mill levy PDFs in S3 bucket
+    # Get list of all PDFs in S3 bucket
     try:
-        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=f"{dir}/")
+        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=f"{dir_name}/")
         
         if 'Contents' not in response:
-            print("No PDFs found in S3 bucket")
+            print(f"No PDFs found in S3 bucket under prefix {dir_name}/")
             return
             
         pdf_keys = [obj['Key'] for obj in response['Contents'] if obj['Key'].endswith('.pdf')]
         
         if not pdf_keys:
-            print("No PDFs found in S3 bucket")
+            print(f"No PDFs found in S3 bucket under prefix {dir_name}/")
             return
             
-        print(f"Found {len(pdf_keys)} PDFs in S3 bucket")
+        print(f"Found {len(pdf_keys)} PDFs in S3 bucket under prefix {dir_name}/")
         
         # Initialize Textract client
         print("Initializing Textractor...")
@@ -120,5 +125,11 @@ def extract_tables(dir):
         print(f"Error listing objects in S3 bucket: {e}")
 
 if __name__ == "__main__":
-    pdf_path = sys.argv[1]
-    extract_tables(pdf_path)
+    if len(sys.argv) < 2:
+        print("Usage: python ocr_tables.py <directory_name>")
+        print("Example: python ocr_tables.py mill-levies")
+        print("Directory name should match the prefix used in S3 and will be used for the output directory in derived/")
+        sys.exit(1)
+    
+    dir_name = sys.argv[1]
+    extract_tables(dir_name)

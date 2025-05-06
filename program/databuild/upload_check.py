@@ -5,10 +5,15 @@ import os
 import time
 import sys
 
-def upload_pdfs(local_dir = "mill-levies"):
-    """Upload PDFs to S3 bucket."""
-    current_dir = Path(__file__).resolve().parent.parent
-    target_dir = current_dir / "data" / "annual-reports" / local_dir
+def upload_pdfs(dir_name):
+    """
+    Upload PDFs to S3 bucket.
+    
+    Args:
+        dir_name (str): Name of the directory containing PDFs to upload
+    """
+    project_root = Path(__file__).resolve().parent.parent.parent
+    target_dir = project_root / "data" / dir_name
     
     # Create directory if it doesn't exist
     target_dir.mkdir(exist_ok=True, parents=True)
@@ -20,10 +25,10 @@ def upload_pdfs(local_dir = "mill-levies"):
     pdf_files = list(target_dir.glob("*.pdf"))
     
     if not pdf_files:
-        print(f"No {local_dir} PDFs found in {target_dir}")
+        print(f"No PDFs found in {target_dir}")
         return
     
-    print(f"Found {len(pdf_files)} {local_dir} PDFs")
+    print(f"Found {len(pdf_files)} PDFs in {dir_name}")
     
     # Track successful and failed uploads
     successful = []
@@ -95,5 +100,11 @@ def upload_pdfs(local_dir = "mill-levies"):
         print(f"Error listing objects: {e}")
 
 if __name__ == "__main__":
-    pdf_path = sys.argv[1]
-    upload_pdfs(pdf_path)
+    if len(sys.argv) < 2:
+        print("Usage: python upload_check.py <directory_name>")
+        print("Example: python upload_check.py mill-levies")
+        print("Directory name should refer to a subfolder in the data/ directory")
+        sys.exit(1)
+    
+    dir_name = sys.argv[1]
+    upload_pdfs(dir_name)

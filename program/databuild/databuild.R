@@ -41,7 +41,8 @@ dt_rates[, c("rar", "nrar") := lapply(.SD, function(x) { x / 100 }),
     .SDcols = c("rar", "nrar")]
 
 # merge ----
-dt <- merge(dt_levies, dt_valuations[, .(county, res_val_share_1980)],
+dt <- merge(
+    dt_levies, dt_valuations[, .(county, res_val_share_1980, assessed_total)],
     by = "county", all.x = TRUE)
 
 if (nrow(dt[is.na(res_val_share_1980)]) > 0) {
@@ -50,6 +51,14 @@ if (nrow(dt[is.na(res_val_share_1980)]) > 0) {
 
 dt <- merge(dt, dt_rates, by = "year", all.x = TRUE)
 setkey(dt, county, year)
+
+# sanity checks ----
+dt[year == 1980, diff := (
+    assessed_valuation - assessed_total) / assessed_valuation]
+if (nrow(dt[abs(diff) >= 0.01]) > 0) {
+    stop("Assessed valuation in mill-levy and county-valuation tables differ by more than 1% in 1980.")
+}
+dt[, c("diff", "assessed_total") := NULL]
 
 # export ----
 saveRDS(dt, here("derived", "sample.Rds"))
