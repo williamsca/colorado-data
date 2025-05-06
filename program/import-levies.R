@@ -38,6 +38,7 @@ process_mill_levy_file <- function(file_path) {
 
   dt <- as.data.table(read_xlsx(file_path, col_names = TRUE))
   setnames(dt, tolower(gsub(" ", "_", names(dt))))
+  dt[, year := year]
 
   if (!"county" %in% names(dt)) {
     if (names(dt)[1] == "...1") {
@@ -49,14 +50,14 @@ process_mill_levy_file <- function(file_path) {
     }
   }
 
+  dt[, county := str_trim(gsub("\\$|\\*|\\s+$", "", county))]
+
+  dt <- dt[!grepl("(?i)(total|state|average)", county)]
+
   if (!"county_mill_levy" %in% names(dt)) {
     warning(paste("No mill levy column found in", filename))
     return(NULL)
   }
-
-  dt[, county := str_trim(gsub("\\$|\\*|\\s+$", "", county))]
-
-  dt <- dt[!grepl("(?i)(total|state|average)", county)]
 
   dt[, county_mill_levy := gsub(",", ".", county_mill_levy)]
   dt[, county_mill_levy := as.numeric(county_mill_levy)]
@@ -66,9 +67,17 @@ process_mill_levy_file <- function(file_path) {
     print(dt[county_mill_levy > 50])
   }
 
-  dt[, year := year]
+  valuation_col <- grep(
+    "assessed_valuation", names(dt), value = TRUE)
+  if (length(valuation_col) == 0) {
+    warning(paste("No assessed valuation column found in", filename))
+    return(dt[, .(county, county_mill_levy, year)])
+  }
+  setnames(dt, valuation_col, "assessed_valuation")
+  dt[, assessed_valuation := as.numeric(gsub(
+    ",|\\$", "", assessed_valuation))]
 
-  dt <- dt[, .(county, county_mill_levy, year)]
+  dt <- dt[, .(county, assessed_valuation, county_mill_levy, year)]
 }
 
 # 3. Process all files and combine results

@@ -13,7 +13,7 @@ This pipeline extracts mill levy data from annual reports PDFs, focusing on the 
 - **Input**: Annual reports in `data/annual-reports/`
 - **Process**: 
   - Manually identify the pages containing mill levy and assessed valuation tables in each report
-  - Record page numbers in `data/annual-reports/mill-levies/mill-levy-pages.csv` and `data/annual-reports/county-valuation/county-valuation-pages.csv`
+  - Record page numbers in `data/annual-reports/mill-levies/mill-levy-pages.csv` and `crosswalk/county-valuation-pages.csv`
   - Format: year, page (can include ranges like "404-405" or multiple pages separated by commas)
 - **Output**: CSV file with year and page mappings
 - **Status**: Manual step required for accurate page identification

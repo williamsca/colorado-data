@@ -18,10 +18,10 @@ def get_annual_report_path(year):
 
 def process_mill_levy_pages(csv_path):
     """
-    Process the mill levy pages CSV file and extract target tables for each year.
+    Process the pages CSV file and extract target tables for each year.
     
     Args:
-        csv_path (str): Path to the CSV file containing mill levy page information
+        csv_path (str): Path to the CSV file containing page information
     """
     csv_path = Path(csv_path)
     
