@@ -3,6 +3,7 @@ import boto3
 from botocore.exceptions import ClientError
 import os
 import time
+import sys
 
 def upload_pdfs(local_dir = "mill-levies"):
     """Upload PDFs to S3 bucket."""
@@ -15,7 +16,7 @@ def upload_pdfs(local_dir = "mill-levies"):
     s3_bucket = "colorado-data-bucket"
     s3_client = boto3.client('s3')
     
-    # Get list of all mill levy PDFs
+    # Get list of all PDFs
     pdf_files = list(target_dir.glob("*.pdf"))
     
     if not pdf_files:
@@ -94,4 +95,5 @@ def upload_pdfs(local_dir = "mill-levies"):
         print(f"Error listing objects: {e}")
 
 if __name__ == "__main__":
-    upload_pdfs()
+    pdf_path = sys.argv[1]
+    upload_pdfs(pdf_path)
