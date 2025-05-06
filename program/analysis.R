@@ -18,7 +18,7 @@ dt <- dt[year != 1970]
 # Gallagher amendment
 dt[, tax_rate_res := county_mill_levy * rar]
 dt[, delta_rar := rar - shift(rar), by = "county"]
-dt[, gallagher := delta_rar * res_val_share_1980]
+dt[, gallagher := rar * res_val_share_1980]
 
 # inspect ----
 fs <- feols(
