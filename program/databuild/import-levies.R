@@ -50,7 +50,7 @@ process_mill_levy_file <- function(file_path) {
     }
   }
 
-  dt[, county := str_trim(gsub("\\$|\\*|\\s+$", "", county))]
+  dt[, county := str_to_title(str_trim(gsub("\\$|\\*|\\s+$", "", county)))]
 
   dt <- dt[!grepl("(?i)(total|state|average)", county)]
 
@@ -88,6 +88,37 @@ dt_levies <- rbindlist(
 )
 
 dt_levies <- dt_levies[!is.na(county) & !is.na(county_mill_levy)]
+
+dt_levies[, county := gsub(" \\+|:|'| #| 4", "", county)]
+dt_levies[county == "Adass", county := "Adams"]
+dt_levies[county == "Alasosa" | county == "Alomoso", county := "Alamosa"]
+dt_levies[county == "Archufeta" | county == "Archuteta", county := "Archuleta"]
+dt_levies[county == "Baco", county := "Baca"]
+dt_levies[county == "Costillo", county := "Costilla"]
+dt_levies[, county := gsub("E1", "El", county)]
+dt_levies[county == "Paso", county := "El Paso"]
+dt_levies[county == "Layle", county := "Eagle"]
+dt_levies[county == "Fresont", county := "Fremont"]
+dt_levies[county == "Gorfield" | county == "Carfield", county := "Garfield"]
+dt_levies[county == "Sunnison", county := "Gunnison"]
+dt_levies[county == "Gr And", county := "Grand"]
+dt_levies[county %in% c("Huefrano", "Huer Fano", "Huerfand", "Huerfono"),
+  county := "Huerfano"]
+dt_levies[county == "Lariser", county := "Larimer"]
+dt_levies[county == "Las Anieas", county := "Las Animas"]
+dt_levies[county == "Montezuea", county := "Montezuma"]
+dt_levies[county == "Borgan", county := "Morgan"]
+dt_levies[county == "Promers", county := "Prowers"]
+dt_levies[county == "Pueble", county := "Pueblo"]
+dt_levies[county == "R10 Grande" | county == "Rio Brande",
+  county := "Rio Grande"]
+dt_levies[county == "Suemit", county := "Summit"]
+dt_levies[county == "Sussit", county := "Summit"]
+dt_levies[county == "Utero", county := "Otero"]
+dt_levies[county == "Duray", county := "Ouray"]
+dt_levies[county == "Yuna", county := "Yuma"]
+
+table(dt_levies$county)
 
 # 4. Validate the data
 # Check for missing values

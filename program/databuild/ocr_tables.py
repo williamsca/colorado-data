@@ -5,12 +5,13 @@ import time
 import os
 import boto3
 import pandas as pd
+import sys
 
-def extract_mill_levy_tables():
+def extract_tables(dir):
     """Extract tables from mill levy PDFs using Amazon Textract."""
     # Set paths
     current_dir = Path(__file__).resolve().parent.parent
-    output_dir = current_dir / "derived" / "mill-levies"
+    output_dir = current_dir / "derived" / dir
     output_dir.mkdir(exist_ok=True, parents=True)
     
     s3_bucket = "colorado-data-bucket"
@@ -18,19 +19,19 @@ def extract_mill_levy_tables():
     
     # Get list of all mill levy PDFs in S3 bucket
     try:
-        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix="mill-levies/")
+        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=f"{dir}/")
         
         if 'Contents' not in response:
-            print("No mill levy PDFs found in S3 bucket")
+            print("No PDFs found in S3 bucket")
             return
             
         pdf_keys = [obj['Key'] for obj in response['Contents'] if obj['Key'].endswith('.pdf')]
         
         if not pdf_keys:
-            print("No mill levy PDFs found in S3 bucket")
+            print("No PDFs found in S3 bucket")
             return
             
-        print(f"Found {len(pdf_keys)} mill levy PDFs in S3 bucket")
+        print(f"Found {len(pdf_keys)} PDFs in S3 bucket")
         
         # Initialize Textract client
         print("Initializing Textractor...")
@@ -119,4 +120,5 @@ def extract_mill_levy_tables():
         print(f"Error listing objects in S3 bucket: {e}")
 
 if __name__ == "__main__":
-    extract_mill_levy_tables()
+    pdf_path = sys.argv[1]
+    extract_tables(pdf_path)
