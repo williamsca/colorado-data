@@ -37,7 +37,7 @@ def extract_and_save_page(pdf_path, page_num, verbose=True, dir_name="mill-levie
     data_dir = Path("data")
     data_dir.mkdir(exist_ok=True, parents=True)
     
-    output_dir = data_dir / dir_name
+    output_dir = data_dir / "annual-reports" / dir_name
     output_dir.mkdir(exist_ok=True, parents=True)
 
     output_path = output_dir / f"{year}{suffix}.pdf"

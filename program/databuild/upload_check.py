@@ -13,7 +13,7 @@ def upload_pdfs(dir_name):
         dir_name (str): Name of the directory containing PDFs to upload
     """
     project_root = Path(__file__).resolve().parent.parent.parent
-    target_dir = project_root / "data" / dir_name
+    target_dir = project_root / "data" / "annual-reports" / dir_name
     
     # Create directory if it doesn't exist
     target_dir.mkdir(exist_ok=True, parents=True)
@@ -36,7 +36,7 @@ def upload_pdfs(dir_name):
     
     for pdf_path in pdf_files:
         year = pdf_path.stem  # Get the year from the filename
-        s3_key = f"{local_dir}/{year}.pdf"
+        s3_key = f"{dir_name}/{year}.pdf"
         s3_uri = f"s3://{s3_bucket}/{s3_key}"
         
         try:
@@ -89,8 +89,8 @@ def upload_pdfs(dir_name):
     
     # List objects in bucket
     try:
-        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=f"{local_dir}/")
-        print(f"\nObjects in {s3_bucket}/{local_dir}/:")
+        response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=f"{dir_name}/")
+        print(f"\nObjects in {s3_bucket}/{dir_name}/:")
         if 'Contents' in response:
             for obj in response['Contents']:
                 print(f"  {obj['Key']} ({obj['Size']} bytes)")
