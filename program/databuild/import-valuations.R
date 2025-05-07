@@ -14,7 +14,7 @@ l_files <- list.files(
     full.names = TRUE
 )
 
-file_path <- l_files[1]
+file_path <- l_files[5]
 
 process_valuation_file <- function(file_path) {
     filename <- basename(file_path)
@@ -26,30 +26,25 @@ process_valuation_file <- function(file_path) {
     setnames(dt, "...1", "county")
     dt[, county := str_to_title(str_trim(gsub("\\$|\\*|\\s+$", "", county)))]
 
-    dt <- dt[!grepl("(?i)(total|state|average)", county)]
+    dt <- dt[!grepl("(?i)(total|state|average|County)", county)]
 
-    
-    if (!"residential_1000" %in% names(dt)) {
-        warning(paste("No residential valuation column found in", filename))
-        return(NULL)
+    v_num <- c("assessed_resi", "assessed_total")
+    if (year < 1984) {
+        setnames(dt, c("...2", "...3"), v_num)
+    } else {
+        setnames(dt, c("...3", "...11"), v_num)
     }
 
-    v_num <- c("residential_1000", "assessed_total")
-    if (!all(v_num %in% names(dt))) {
-        warning(paste("Missing columns in", filename))
-        print(paste0("Columns in data: ", names(dt)))
-        return(NULL)
-    }
     dt[, (v_num) := lapply(.SD, function(x) {
         as.numeric(gsub(",|\\$|\\.", "", x))
     }), .SDcols = v_num]
-    if (year >= 1987) { # TODO: check this year
+    if (between(year, 1984, 1992)) { # TODO: confirm this
         dt[, (v_num) := lapply(.SD, function(x) {
             x * 1000
         }), .SDcols = v_num]
     }
 
-    dt <- dt[, .(county, year, residential_1000, assessed_total)]
+    dt <- dt[, .(county, year, assessed_resi, assessed_total)]
 }
 
 # 3. Process all files and combine results
@@ -59,8 +54,7 @@ dt_val <- rbindlist(
     fill = TRUE
 )
 
-dt_val <- dt_val[!is.na(county) & !is.na(county_mill_levy)]
-
+# clean county names
 dt_val[, county := gsub(" \\+|:|'| #| 4", "", county)]
 dt_val[county == "Adass", county := "Adams"]
 dt_val[county == "Alasosa" | county == "Alomoso", county := "Alamosa"]
