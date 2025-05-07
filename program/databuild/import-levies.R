@@ -7,29 +7,12 @@ library(data.table)
 library(readxl)
 library(stringr)
 
-# PLAN FOR MILL LEVY DATA IMPORT AND PROCESSING:
-# 1. Get a list of all Excel files in the 'derived/mill-levies/' directory
-# 2. Create a function to process each file:
-#    a. Extract year from filename (e.g., '1970.xlsx' -> 1970)
-#    b. Read the Excel file
-#    c. Identify and standardize the county name column
-#    d. Identify and standardize the county mill levy column
-#    e. Select only the county name, county mill levy, and year columns
-#    f. Clean and standardize the data format
-# 3. Apply the function to each file and combine results into a single data.table
-# 4. Validate the data (check for missing values, duplicates, etc.)
-# 5. Save the combined data as 'derived/mill-levies.Rds'
-
-# IMPLEMENTATION
-
 # 1. Get list of all Excel files in the mill-levies directory
 mill_levy_files <- list.files(
   path = here("derived", "mill-levies"),
   pattern = "*.xlsx",
   full.names = TRUE
 )
-
-file_path <- mill_levy_files[2]
 
 # 2. Create a function to process each file
 process_mill_levy_file <- function(file_path) {
