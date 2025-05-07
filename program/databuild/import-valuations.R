@@ -14,7 +14,7 @@ l_files <- list.files(
     full.names = TRUE
 )
 
-file_path <- l_files[5]
+file_path <- l_files[6]
 
 process_valuation_file <- function(file_path) {
     filename <- basename(file_path)
@@ -27,21 +27,27 @@ process_valuation_file <- function(file_path) {
     dt[, county := str_to_title(str_trim(gsub("\\$|\\*|\\s+$", "", county)))]
 
     dt <- dt[!grepl("(?i)(total|state|average|County)", county)]
+    dt <- dt[!is.na(county)]
 
     v_num <- c("assessed_resi", "assessed_total")
     if (year < 1984) {
-        setnames(dt, c("...2", "...3"), v_num)
+        setnames(dt, c("...2", "...9"), v_num)
     } else {
         setnames(dt, c("...3", "...11"), v_num)
     }
 
     dt[, (v_num) := lapply(.SD, function(x) {
-        as.numeric(gsub(",|\\$|\\.", "", x))
+        as.numeric(gsub(",|\\$|\\.|#", "", x))
     }), .SDcols = v_num]
     if (between(year, 1984, 1992)) { # TODO: confirm this
         dt[, (v_num) := lapply(.SD, function(x) {
             x * 1000
         }), .SDcols = v_num]
+    }
+
+    if (nrow(dt[assessed_resi > assessed_total]) > 0) {
+        stop(paste("Residential valuation greater than total valuation in",
+            filename))
     }
 
     dt <- dt[, .(county, year, assessed_resi, assessed_total)]
@@ -55,45 +61,45 @@ dt_val <- rbindlist(
 )
 
 # clean county names
-dt_val[, county := gsub(" \\+|:|'| #| 4", "", county)]
-dt_val[county == "Adass", county := "Adams"]
-dt_val[county == "Alasosa" | county == "Alomoso", county := "Alamosa"]
-dt_val[county == "Archufeta" | county == "Archuteta", county := "Archuleta"]
-dt_val[county == "Baco", county := "Baca"]
-dt_val[county == "Costillo", county := "Costilla"]
-dt_val[, county := gsub("E1", "El", county)]
-dt_val[county == "Paso", county := "El Paso"]
-dt_val[county == "Layle", county := "Eagle"]
-dt_val[county == "Fresont", county := "Fremont"]
-dt_val[county == "Gorfield" | county == "Carfield", county := "Garfield"]
-dt_val[county == "Sunnison", county := "Gunnison"]
-dt_val[county == "Gr And", county := "Grand"]
-dt_val[
-    county %in% c("Huefrano", "Huer Fano", "Huerfand", "Huerfono"),
-    county := "Huerfano"
-]
-dt_val[county == "Lariser", county := "Larimer"]
-dt_val[county == "Las Anieas", county := "Las Animas"]
-dt_val[county == "Montezuea", county := "Montezuma"]
-dt_val[county == "Borgan", county := "Morgan"]
-dt_val[county == "Promers", county := "Prowers"]
-dt_val[county == "Pueble", county := "Pueblo"]
-dt_val[
-    county == "R10 Grande" | county == "Rio Brande",
-    county := "Rio Grande"
-]
-dt_val[county == "Suemit", county := "Summit"]
-dt_val[county == "Sussit", county := "Summit"]
-dt_val[county == "Utero", county := "Otero"]
-dt_val[county == "Duray", county := "Ouray"]
-dt_val[county == "Yuna", county := "Yuma"]
+dt_val[, county := gsub("10", "io", county)]
+dt_val[, county := gsub("\\.", "", county)]
+dt_val[county %in% c("Apapance", "Arapahce", "Arapahde"), county := "Arapahoe"]
+dt_val[county == "Archuteta", county := "Archuleta"]
+dt_val[county == "Celta", county := "Delta"]
+dt_val[county == "Bilpin", county := "Gilpin"]
+dt_val[county == "Gouglas", county := "Douglas"]
+dt_val[county == "Eaca", county := "Baca"]
+dt_val[county == "Costila", county := "Costilla"]
+dt_val[county == "Clear Creem", county := "Clear Creek"]
+dt_val[county == "El Pa50", county := "El Paso"]
+dt_val[county == "Fhillips", county := "Phillips"]
+dt_val[county == "Fueblo", county := "Pueblo"]
+dt_val[county == "Gapfield", county := "Garfield"]
+dt_val[county %in% c("Huerfand", "Kuerfano"), county := "Huerfano"]
+dt_val[county == "Lcgan", county := "Logan"]
+dt_val[county == "Liacoln", county := "Lincoln"]
+dt_val[county == "Minsdale", county := "Hinsdale"]
+dt_val[county == "Pueslo", county := "Pueblo"]
+dt_val[county == "Telles", county := "Teller"]
+dt_val[county == "Yum A", county := "Yuma"]
+dt_val[county == "Seoglick", county := "Sedgwick"]
+dt_val[county == "6io Grande", county := "Rio Grande"]
+dt_val[county %in% c("Curay", "Curry"), county := "Ouray"]
+dt_val[county == "Ctero", county := "Otero"]
+dt_val[county == "Comejos", county := "Conejos"]
+dt_val[county == "Colores", county := "Dolores"]
+dt_val[county == "Fic Blanco", county := "Rio Blanco"]
+dt_val[county == "Itkin", county := "Pitkin"]
+dt_val[county == "Fack", county := "Park"]
 
-table(dt_val$county)
+dt_val <- dt_val[county != "Toevr3-01"]
+
+dt_val[, assessed_share_resi := assessed_resi / assessed_total]
 
 # 4. Validate the data
 # Check for missing values
 missing_counties <- dt_val[is.na(county), .N]
-missing_levies <- dt_val[is.na(county_mill_levy), .N]
+missing_levies <- dt_val[is.na(assessed_resi), .N]
 
 if (missing_counties > 0) {
     warning(paste("Missing county names:", missing_counties))
@@ -105,7 +111,11 @@ if (missing_levies > 0) {
 
 # Check for duplicates
 if (uniqueN(dt_val[, .(county, year)]) != nrow(dt_val)) {
-    warning("Mill levy data contains duplicates")
+    warning("Valuation data contains duplicates.")
+}
+
+if (nrow(dt_val) != uniqueN(dt_val$county) * uniqueN(dt_val$year)) {
+    warning("Valuation data is unbalanced.")
 }
 
 # Export ----

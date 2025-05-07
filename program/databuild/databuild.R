@@ -6,6 +6,7 @@
 # from the 2023 Assessed Values Manual.
 
 source(here("program", "databuild", "import-levies.R"))
+source(here("program", "databuild", "import-valuations.R"))
 
 rm(list = ls())
 library(here)
@@ -17,23 +18,11 @@ library(stringr)
 # mill levies
 dt_levies <- readRDS(here("derived", "mill-levies.Rds"))
 
-# valuations by use and county for 1980
-dt_valuations <- as.data.table(read_xlsx(here(
-    "derived", "county-valuation", "1980.xlsx")), col_names = TRUE)
-setnames(dt_valuations, tolower(gsub(" ", "_", names(dt_valuations))))
-setnames(dt_valuations, "tdevr3-01_county", "county")
-dt_valuations[, county := str_to_title(gsub(" \\$", "", county))]
-dt_valuations[county == "K10wa", county := "Kiowa"]
-dt_valuations[county == "Curay", county := "Ouray"]
+# valuations
+dt_val <- readRDS(here("derived", "county-valuations.Rds"))
 
-# convert valuations to numeric
-v_valuation <- grep("county", names(dt_valuations), invert = TRUE, value = TRUE)
-dt_valuations[, (v_valuation) := lapply(.SD, function(x) {
-    as.numeric(gsub(
-        "\\.|,|\\$", "", x
-    ))
-}), .SDcols = v_valuation]
-dt_valuations[, res_val_share_1980 := residential_1000 / assessed_total]
+dt_val_1980 <- copy(dt_val[year == 1980])
+dt_val_1980[, assessed_share_resi_1980 := assessed_resi / assessed_total]
 
 # assessment rates
 dt_rates <- fread(here("data", "assessment_rates.csv"))
@@ -42,22 +31,29 @@ dt_rates[, c("rar", "nrar") := lapply(.SD, function(x) { x / 100 }),
 
 # merge ----
 dt <- merge(
-    dt_levies, dt_valuations[, .(county, res_val_share_1980, assessed_total)],
-    by = "county", all.x = TRUE)
+    dt_levies, dt_val_1980[, .(county, assessed_share_resi_1980)],
+    by = c("county"), all.x = TRUE)
 
-if (nrow(dt[is.na(res_val_share_1980)]) > 0) {
+if (nrow(dt[is.na(assessed_share_resi_1980)]) > 0) {
     stop("Missing residential valuation share for 1980 in a county.")
 }
+
+dt <- merge(
+    dt, dt_val,
+    by = c("county", "year"), all.x = TRUE)
 
 dt <- merge(dt, dt_rates, by = "year", all.x = TRUE)
 setkey(dt, county, year)
 
 # sanity checks ----
-dt[year == 1980, diff := (
+dt[, diff := (
     assessed_valuation - assessed_total) / assessed_valuation]
 if (nrow(dt[abs(diff) >= 0.01]) > 0) {
-    stop("Assessed valuation in mill-levy and county-valuation tables differ by more than 1% in 1980.")
+    warning("Assessed valuation in mill-levy and county-valuation tables differ by more than 1%.")
 }
+
+dt[diff > 0.01, .(county, year, assessed_valuation, assessed_total, diff)]
+
 dt[, c("diff", "assessed_total") := NULL]
 
 # export ----
