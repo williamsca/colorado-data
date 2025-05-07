@@ -1,5 +1,7 @@
 data/annual-reports
 data/assessed-values-manual
+data/census-pop
+
 derived/*.Rds
 
 results/

@@ -5,8 +5,9 @@
 # Assessment rates for residential and commercial property are hand-coded
 # from the 2023 Assessed Values Manual.
 
-source(here("program", "databuild", "import-levies.R"))
-source(here("program", "databuild", "import-valuations.R"))
+# source(here("program", "databuild", "import-levies.R"))
+# source(here("program", "databuild", "import-valuations.R"))
+# source(here("program", "databuild", "import-pop.R"))
 
 rm(list = ls())
 library(here)
@@ -29,9 +30,32 @@ dt_rates <- fread(here("data", "assessment_rates.csv"))
 dt_rates[, c("rar", "nrar") := lapply(.SD, function(x) { x / 100 }),
     .SDcols = c("rar", "nrar")]
 
+# population
+dt_pop <- readRDS(here("derived", "pop.Rds"))
+
+# county FIPS codes
+dt_fips <- fread(
+    here("crosswalk", "counties-co.csv"),
+    select = c("STATEFP", "COUNTYFP", "COUNTYNAME"))
+dt_fips[, fips := STATEFP * 1000 + COUNTYFP]
+dt_fips[, county := gsub(" County", "", COUNTYNAME)]
+
 # merge ----
+# balanced panel
+dt <- CJ(fips = dt_fips$fips, year = unique(dt_levies$year))
+
+dt <- merge(dt, dt_fips[, .(fips, county)], by = "fips", all.x = TRUE)
+
+# TODO: diagnose this merge
+dt <- merge(dt, dt_pop[, .(year, fips, pop)], by = c("fips", "year"),
+    all.x = TRUE)
+
 dt <- merge(
-    dt_levies, dt_val_1980[, .(county, assessed_share_resi_1980)],
+    dt, dt_levies, by = c("county", "year"),
+    all.x = TRUE)
+
+dt <- merge(
+    dt, dt_val_1980[, .(county, assessed_share_resi_1980)],
     by = c("county"), all.x = TRUE)
 
 if (nrow(dt[is.na(assessed_share_resi_1980)]) > 0) {

@@ -25,6 +25,11 @@ dt[, val_share_resi := mkt_val_resi / mkt_val_total]
 # TODO: these should be equal
 dt[year <= 1982 & val_share_resi != assessed_share_resi]
 
+# high- and low-residential valuation share counties
+median_resi <- median(dt[year == 1980, val_share_resi])
+dt[, resi_group := fifelse(
+    val_share_resi > median_resi, "High", "Low")]
+
 # construct instrument for the effective tax rate:
 # use variation in residential assessment rate due to the
 # Gallagher amendment
@@ -50,16 +55,19 @@ dt[, paste0(v_logs, "_ln") := lapply(.SD, log), .SDcols = v_logs]
 # inspect ----
 # residential valuation shares in 1980
 ggplot(dt[year == 1980], aes(x = val_share_resi * 100)) +
+    geom_hline(yintercept = seq(0, 15, 3), linetype = "dotted", color = "gray") +
     geom_histogram(
-        aes(y = after_stat(count)), binwidth = 10, boundary = 0) +
-    scale_x_continuous(breaks = seq(0, 100, 10)) +
-    scale_y_continuous(breaks = seq(0, 12, 3)) +
+        aes(y = after_stat(count)), binwidth = 15, boundary = 0,
+        fill = v_palette[1]) +
+    scale_x_continuous(breaks = seq(0, 90, 15)) +
+    scale_y_continuous(breaks = seq(0, 15, 3)) +
     labs(
-        title = "Distribution of Residential Valuation Share in 1980",
         x = "Residential Valuation Share (%)",
         y = "Count"
     ) +
-    theme_classic()
+    theme_classic(base_size = 14)
+ggsave(here("results", "plots", "resi_val_share_1980.pdf"),
+    width = 9, height = 5)
 
 # effective residential tax rates over time
 # ... across counties
@@ -96,6 +104,28 @@ ggplot(dt_long, aes(
     theme_classic(base_size = 14) +
     scale_color_manual(values = v_palette[1:2], name = "") +
     theme(legend.position = "bottom")
+
+# ... for high- and low-residential valuation share counties
+dt_resi <- dt[, .(
+    tax_rate = mean(tax_rate * 100),
+    tax_rate_avg = mean(tax_rate_avg * 100)
+), by = .(year, resi_group)]
+ggplot(dt_resi, aes(
+    x = year, y = tax_rate_avg, color = resi_group,
+    group = resi_group)
+) +
+    geom_hline(
+        yintercept = seq(.2, .6, .2), linetype = "dotted", color = "gray") +
+    geom_line(linewidth = 2) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(
+        x = "", y = "Effective Tax Rate (%)"
+    ) +
+    theme_classic(base_size = 14) +
+    scale_color_manual(values = v_palette[1:2], name = "") +
+    theme(legend.position = "bottom")
+ggsave(here("results", "plots", "effective_tax_rate_by_resi_share.pdf"),
+    width = 9, height = 5)
 
 # resi value shares over time
 dt_yr <- dt[, .(val_share_resi = mean(val_share_resi)), by = year]
