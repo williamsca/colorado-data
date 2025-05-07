@@ -28,6 +28,7 @@ process_valuation_file <- function(file_path) {
 
     dt <- dt[!grepl("(?i)(total|state|average)", county)]
 
+    
     if (!"residential_1000" %in% names(dt)) {
         warning(paste("No residential valuation column found in", filename))
         return(NULL)
