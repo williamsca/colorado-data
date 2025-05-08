@@ -19,6 +19,13 @@ dt[, pop := as.integer(substr(V2, 6, 14))]
 # sanity check
 dt[, .(pop = sum(pop)), by = year]
 
+# recoded counties
+# https://seer.cancer.gov/popdata/modifications.html
+dt[fips == 8911, fips := 8001]
+dt[fips == 8912, fips := 8013]
+dt[fips == 8913, fips := 8059]
+dt[fips == 8914, fips := 8123]
+
 # aggregate by county
 dt <- dt[, .(pop = sum(pop)), by = .(year, state, fips)]
 

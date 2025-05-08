@@ -22,7 +22,7 @@ dt_levies <- readRDS(here("derived", "mill-levies.Rds"))
 # valuations
 dt_val <- readRDS(here("derived", "county-valuations.Rds"))
 
-dt_val_1980 <- copy(dt_val[year == 1980])
+dt_val_1980 <- dt_val[year == 1980]
 dt_val_1980[, assessed_share_resi_1980 := assessed_resi / assessed_total]
 
 # assessment rates
@@ -32,6 +32,8 @@ dt_rates[, c("rar", "nrar") := lapply(.SD, function(x) { x / 100 }),
 
 # population
 dt_pop <- readRDS(here("derived", "pop.Rds"))
+dt_pop_1980 <- dt_pop[year == 1980]
+setnames(dt_pop_1980, "pop", "pop_1980")
 
 # county FIPS codes
 dt_fips <- fread(
@@ -39,6 +41,7 @@ dt_fips <- fread(
     select = c("STATEFP", "COUNTYFP", "COUNTYNAME"))
 dt_fips[, fips := STATEFP * 1000 + COUNTYFP]
 dt_fips[, county := gsub(" County", "", COUNTYNAME)]
+dt_fips <- dt_fips[county != "Broomfield"] # Broomfield was created in 2001
 
 # merge ----
 # balanced panel
@@ -46,9 +49,12 @@ dt <- CJ(fips = dt_fips$fips, year = unique(dt_levies$year))
 
 dt <- merge(dt, dt_fips[, .(fips, county)], by = "fips", all.x = TRUE)
 
-# TODO: diagnose this merge
 dt <- merge(dt, dt_pop[, .(year, fips, pop)], by = c("fips", "year"),
     all.x = TRUE)
+if (nrow(dt[is.na(pop)]) != 0) {
+    stop("Missing population data for a county.")
+}
+dt <- merge(dt, dt_pop_1980[, .(fips, pop_1980)], by = "fips", all.x = TRUE)
 
 dt <- merge(
     dt, dt_levies, by = c("county", "year"),
@@ -79,6 +85,52 @@ if (nrow(dt[abs(diff) >= 0.01]) > 0) {
 dt[diff > 0.01, .(county, year, assessed_valuation, assessed_total, diff)]
 
 dt[, c("diff", "assessed_total") := NULL]
+
+# outcomes
+# implied market valuations
+dt[, mkt_val_resi := assessed_resi / rar]
+dt[, mkt_val_other := (assessed_valuation - assessed_resi) / nrar]
+dt[, mkt_val_total := mkt_val_resi + mkt_val_other]
+
+dt[, val_share_resi := mkt_val_resi / mkt_val_total]
+
+# TODO: these should be equal
+dt[year <= 1982 & val_share_resi != assessed_share_resi]
+
+# high- and low-residential valuation share counties
+median_resi <- median(dt[year == 1980, val_share_resi])
+dt[, resi_group := fifelse(
+    val_share_resi > median_resi, "High", "Low"
+)]
+
+# construct instrument for the effective tax rate:
+# use variation in residential assessment rate due to the
+# Gallagher amendment
+dt[, tax_rate := county_mill_levy / 1000]
+dt[, tax_rate_res := tax_rate * rar] # effective residential rate
+dt[, revenue := assessed_valuation * tax_rate]
+
+# value-weighted average assessment ratio
+dt[, eff_ar := val_share_resi * rar + (1 - val_share_resi) * nrar]
+
+# value-weighted average tax rate
+dt[, tax_rate_avg := eff_ar * tax_rate]
+
+# instrument for effective assessment ratio using pre-determined shares
+dt[, gallagher := assessed_share_resi_1980 * rar +
+    (1 - assessed_share_resi_1980) * nrar]
+
+v_logs <- c(
+    "tax_rate", "revenue", "gallagher", "mkt_val_total",
+    "eff_ar", "mkt_val_resi", "mkt_val_other"
+)
+dt[, paste0(v_logs, "_ln") := lapply(.SD, log), .SDcols = v_logs]
+
+v_pcap <- c(
+    "revenue", "mkt_val_total", "mkt_val_resi", "mkt_val_other"
+)
+dt[, paste0(v_pcap, "_pcap") := lapply(.SD, function(x) { x / pop }),
+    .SDcols = v_pcap]
 
 # export ----
 saveRDS(dt, here("derived", "sample.Rds"))

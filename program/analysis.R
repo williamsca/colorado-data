@@ -15,43 +15,6 @@ v_palette <- c("#0072B2", "#D55E00", "#009E73", "#F0E460")
 dt <- readRDS(here("derived", "sample.Rds"))
 dt <- dt[year != 1970]
 
-# implied market valuations
-dt[, mkt_val_resi := assessed_resi / rar]
-dt[, mkt_val_other := (assessed_valuation - assessed_resi) / nrar]
-dt[, mkt_val_total := mkt_val_resi + mkt_val_other]
-
-dt[, val_share_resi := mkt_val_resi / mkt_val_total]
-
-# TODO: these should be equal
-dt[year <= 1982 & val_share_resi != assessed_share_resi]
-
-# high- and low-residential valuation share counties
-median_resi <- median(dt[year == 1980, val_share_resi])
-dt[, resi_group := fifelse(
-    val_share_resi > median_resi, "High", "Low")]
-
-# construct instrument for the effective tax rate:
-# use variation in residential assessment rate due to the
-# Gallagher amendment
-dt[, tax_rate := county_mill_levy / 1000]
-dt[, tax_rate_res := tax_rate * rar] # effective residential rate
-dt[, revenue := assessed_valuation * tax_rate]
-
-# value-weighted average assessment ratio
-dt[, eff_ar := val_share_resi * rar + (1 - val_share_resi) * nrar]
-
-# value-weighted average tax rate
-dt[, tax_rate_avg := eff_ar * tax_rate]
-
-# instrument for effective assessment ratio using pre-determined shares
-dt[, gallagher := assessed_share_resi_1980 * rar +
-    (1 - assessed_share_resi_1980) * nrar]
-
-v_logs <- c(
-    "tax_rate", "revenue", "gallagher", "mkt_val_total",
-    "eff_ar", "mkt_val_resi", "mkt_val_other")
-dt[, paste0(v_logs, "_ln") := lapply(.SD, log), .SDcols = v_logs]
-
 # inspect ----
 # residential valuation shares in 1980
 ggplot(dt[year == 1980], aes(x = val_share_resi * 100)) +
@@ -127,14 +90,56 @@ ggplot(dt_resi, aes(
 ggsave(here("results", "plots", "effective_tax_rate_by_resi_share.pdf"),
     width = 9, height = 5)
 
-# resi value shares over time
-dt_yr <- dt[, .(val_share_resi = mean(val_share_resi)), by = year]
-ggplot(dt_yr, aes(x = year, y = val_share_resi * 100)) +
-    geom_line(color = v_palette[1], linewidth = 2) +
+# tax revenues per capita over time
+# ... for high and low-residential valuation share counties
+dt_rev <- dt[, .(
+    revenue = sum(revenue),
+    pop = sum(pop),
+    mkt_val_total = sum(mkt_val_total),
+    mkt_val_resi = sum(mkt_val_resi),
+    assessed_valuation = sum(assessed_valuation),
+    assessed_resi = sum(assessed_resi)
+), by = .(year, resi_group)]
+dt_rev[, revenue_pcap := revenue / pop]
+dt_rev[, val_share_resi := mkt_val_resi / mkt_val_total]
+dt_rev[, assessed_share_resi := assessed_resi / assessed_valuation]
+
+ggplot(dt_rev, aes(
+    x = year, y = revenue_pcap, color = resi_group,
+    group = resi_group)
+) +
+    # geom_hline(yintercept = seq(0, 2000, 500), linetype = "dotted", color = "gray") +
+    geom_line(linewidth = 2) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(
-        x = "", y = "Valuation Share (%)"
+        x = "", y = "Revenue per Capita ($)"
     ) +
+    theme_classic(base_size = 14) +
+    scale_color_manual(values = v_palette[1:2], name = "") +
+    theme(legend.position = "bottom")
+
+# resi value shares over time
+# ... for high and low-residential valuation share counties
+ggplot(dt_rev, aes(
+        x = year, y = val_share_resi * 100,
+        color = resi_group, group = resi_group)) +
+    geom_line(linewidth = 2) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(
+        x = "", y = "Market Valuation Share (%)"
+    ) +
+    scale_color_manual(values = v_palette[1:2], name = "") +
+    theme_classic(base_size = 14)
+
+ggplot(dt_rev, aes(
+        x = year, y = assessed_share_resi * 100,
+        color = resi_group, group = resi_group)) +
+    geom_line(linewidth = 2) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(
+        x = "", y = "Assessed Valuation Share (%)"
+    ) +
+    scale_color_manual(values = v_palette[1:2], name = "") +
     theme_classic(base_size = 14)
 
 # estimate ----
@@ -147,19 +152,30 @@ rev <- feols(
 etable(rev, digits = 3)
 
 # IV for effective assessment ratio using pre-determined shares
+v_out <- c(
+    "revenue_ln", "revenue_pcap", "mkt_val_total_ln",
+    "mkt_val_resi_ln", "mkt_val_other_ln", "tax_rate_ln",
+    "val_share_resi"
+)
+s_out <- paste0("c(", paste(v_out, collapse = ", "), ")")
+
+fmla_iv <- as.formula(paste0(
+    s_out, " ~ -1 | county + year | eff_ar_ln ~ gallagher_ln"
+))
+
 rev_iv <- feols(
-    c(revenue_ln, mkt_val_total_ln, mkt_val_resi_ln, mkt_val_other_ln, tax_rate_ln) ~ -1 |
-        county + year | eff_ar_ln ~ gallagher_ln,
-    data = dt
+    fmla_iv, data = dt, weights = ~pop_1980
 )
 
 # counties hit with a Gallagher shock to their effective assessment rates see *lower* "market" values (driven by lower non-residential values), *higher* mill rates, and *lower* revenues??? could treated counties be underassessing commercial/industrial properties? Need to think carefully about differences between high- and low-Gallagher counties
-etable(rev_iv[lhs = 1], digits = 3, stage = 1:2, fitstat = "ivf")
+etable(rev_iv[lhs = "revenue"], digits = 3, stage = 1:2, fitstat = "ivf")
 
-etable(rev_iv[lhs = 2], digits = 3, stage = 1:2, fitstat = "ivf")
+etable(rev_iv[lhs = "mkt_val_total"], digits = 3, stage = 1:2, fitstat = "ivf")
 
-etable(rev_iv[lhs = 3], digits = 3, stage = 1:2, fitstat = "ivf")
+etable(rev_iv[lhs = "mkt_val_resi"], digits = 3, stage = 1:2, fitstat = "ivf")
 
-etable(rev_iv[lhs = 4], digits = 3, stage = 1:2, fitstat = "ivf")
+etable(rev_iv[lhs = "mkt_val_other"], digits = 3, stage = 1:2, fitstat = "ivf")
 
-etable(rev_iv[lhs = 5], digits = 3, stage = 1:2, fitstat = "ivf")
+etable(rev_iv[lhs = "tax_rate"], digits = 3, stage = 1:2, fitstat = "ivf")
+
+etable(rev_iv[lhs = "val_share_resi"], digits = 3, stage = 1:2, fitstat = "ivf")
