@@ -1,0 +1,119 @@
+\documentclass[11pt,article,oneside]{memoir}
+% \input{vc}
+
+\usepackage{booktabs, amsmath, memoir-article-styles, graphicx, hyperref}
+
+% packages for 'etable' output from R
+\usepackage{longtable, makecell, rotating}
+
+\usepackage[authoryear]{natbib} % citation manager
+
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
+\usepackage[dvipsnames]{xcolor} % Standard suite of named colors
+
+\hypersetup{
+    colorlinks=true, % Colored links instead of boxed
+    linkcolor={RoyalBlue}, % Color of internal links
+    citecolor={RoyalBlue}, % Color of citations
+    urlcolor={Cerulean} % Color of URL links
+}
+
+\usepackage{float}
+\floatplacement{figure}{H} % control figure placement
+
+\setlength{\parindent}{20pt} % Sets paragraph indentation
+\setlength{\parskip}{5pt plus 0pt} % Sets paragraph spacing
+
+
+
+
+
+ 
+
+%\author{true}
+
+\author{\Large Colin
+Williams\vspace{0.05in} \newline\normalsize\emph{University of
+Virginia} \newline\footnotesize \protect\url{chv7bg@virginia.edu}\vspace*{0.2in}\newline }
+
+
+\date{}
+
+
+\begin{document}  
+\setkeys{Gin}{width=1\textwidth} 	
+%\setromanfont[Mapping=tex-text,Numbers=OldStyle]{Minion Pro} 
+%\setsansfont[Mapping=tex-text]{Minion Pro} 
+%\setmonofont[Mapping=tex-text,Scale=0.8]{Pragmata}
+\chapterstyle{article-3} 
+\pagestyle{kjh}
+
+\published{.}
+
+
+
+
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+\hypertarget{house-price-index-analysis}{%
+\section{House Price Index Analysis}\label{house-price-index-analysis}}
+
+\hypertarget{methods}{%
+\subsection{Methods}\label{methods}}
+
+We analyze the effect of effective assessment ratios on house price
+indices using instrumental variables estimation. The house price index
+(HPI) data comes from Bogin, Doerner, and Larson and provides
+county-level price indices for Colorado counties from 1975-2024. We
+merge this data with our county-year panel of mill levies and assessment
+ratios for the overlapping period of 1980-1995.
+
+Our identification strategy exploits exogenous variation in effective
+assessment ratios induced by Colorado's Gallagher Amendment.
+Specifically, we instrument for the effective assessment ratio using a
+measure based on predetermined (1980) residential valuation shares
+interacted with time-varying residential assessment rates. This
+instrument captures the mechanical effect of Gallagher on assessment
+ratios while being orthogonal to unobserved factors that might
+independently affect house prices.
+
+We estimate
+
+\[y_{ct} = \alpha + \beta \text{EAR}_{ct} + \lambda_c + \delta_t + \epsilon_{ct}\]
+
+where \(y_{ct}\) is the log house price index for county \(c\) at time
+\(t\), \(\text{EAR}_{ct}\) is the effective assessment ratio,
+\(\lambda_c\) are county fixed effects, and \(\delta_t\) are year fixed
+effects. The parameter of interest is \(\beta\), which captures the
+effect of effective assessment ratios on house prices.
+
+\hypertarget{results}{%
+\subsection{Results}\label{results}}
+
+Table \ref{tab:hpi-effects} presents both OLS and instrumental variables
+estimates of the effect of effective assessment ratios on log house
+prices. The OLS estimate suggests a small negative but statistically
+insignificant relationship (-0.311, standard error 0.356). The IV
+estimate is larger in magnitude (-2.00, standard error 2.09) but remains
+statistically insignificant at conventional levels.
+
+\begin{table}[htbp]
+
+\caption{The effect of property tax rates on housing prices}\label{tab:hpi-effects}
+\input{results/tables/hpi-eff_ar-iv.tex}
+\begin{footnotesize}
+\begin{flushleft}
+\emph{Note:  } The table 
+\end{flushleft}
+\end{footnotesize}
+
+
+\end{table}
+
+
+% original bibliography code
+% %
+\end{document}

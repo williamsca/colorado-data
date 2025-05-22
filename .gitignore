@@ -1,7 +1,17 @@
 data/annual-reports
 data/assessed-values-manual
 data/census-pop
+data/bogin_doerner_larson_hpi
 
 derived/*.Rds
 
 results/
+
+paper.pdf
+
+*.aux
+*.log
+*.synctex.gz
+*.bbl
+*.blg
+*.out

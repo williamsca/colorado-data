@@ -5,15 +5,16 @@
 # Assessment rates for residential and commercial property are hand-coded
 # from the 2023 Assessed Values Manual.
 
-# source(here("program", "databuild", "import-levies.R"))
-# source(here("program", "databuild", "import-valuations.R"))
-# source(here("program", "databuild", "import-pop.R"))
-
 rm(list = ls())
 library(here)
 library(data.table)
 library(readxl)
 library(stringr)
+
+# source(here("program", "databuild", "import-levies.R"))
+# source(here("program", "databuild", "import-valuations.R"))
+# source(here("program", "databuild", "import-pop.R"))
+source(here("program", "databuild", "import-hpi.R"))
 
 # import ----
 # mill levies
@@ -34,6 +35,9 @@ dt_rates[, c("rar", "nrar") := lapply(.SD, function(x) { x / 100 }),
 dt_pop <- readRDS(here("derived", "pop.Rds"))
 dt_pop_1980 <- dt_pop[year == 1980]
 setnames(dt_pop_1980, "pop", "pop_1980")
+
+# HPI
+dt_hpi <- readRDS(here("derived", "hpi.Rds"))
 
 # county FIPS codes
 dt_fips <- fread(
@@ -73,6 +77,11 @@ dt <- merge(
     by = c("county", "year"), all.x = TRUE)
 
 dt <- merge(dt, dt_rates, by = "year", all.x = TRUE)
+
+# HPI
+dt <- merge(dt, dt_hpi[, .(fips, year, hpi)], by = c("fips", "year"),
+    all.x = TRUE)
+
 setkey(dt, county, year)
 
 # sanity checks ----
@@ -85,6 +94,22 @@ if (nrow(dt[abs(diff) >= 0.01]) > 0) {
 dt[diff > 0.01, .(county, year, assessed_valuation, assessed_total, diff)]
 
 dt[, c("diff", "assessed_total") := NULL]
+
+# HPI sanity checks ----
+# Check that all observations in base panel match to an HPI for overlapping years
+hpi_overlap_years <- intersect(unique(dt$year), unique(dt_hpi$year))
+dt_overlap <- dt[year %in% hpi_overlap_years]
+missing_hpi <- dt_overlap[is.na(hpi)]
+if (nrow(missing_hpi) > 0) {
+    cat("Counties missing HPI data for overlapping years:\n")
+    print(missing_hpi[, .(county, year, fips)])
+    cat("Total missing HPI observations:", nrow(missing_hpi), "\n")
+}
+
+# Check uniqueness on county-year for the merged dataset
+if (anyDuplicated(dt, by = c("county", "year")) > 0) {
+    stop("Merged dataset is not unique on county-year.")
+}
 
 # outcomes
 # implied market valuations
@@ -122,7 +147,8 @@ dt[, gallagher := assessed_share_resi_1980 * rar +
 
 v_logs <- c(
     "tax_rate", "revenue", "gallagher", "mkt_val_total",
-    "eff_ar", "mkt_val_resi", "mkt_val_other"
+    "eff_ar", "mkt_val_resi", "mkt_val_other", "hpi",
+    "tax_rate_res", "rar"
 )
 dt[, paste0(v_logs, "_ln") := lapply(.SD, log), .SDcols = v_logs]
 
