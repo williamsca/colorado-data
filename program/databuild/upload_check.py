@@ -102,7 +102,7 @@ def upload_pdfs(dir_name):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python upload_check.py <directory_name>")
-        print("Example: python upload_check.py mill-levies")
+        print("Example: python upload_check.py mill-levy")
         print("Directory name should refer to a subfolder in the data/ directory")
         sys.exit(1)
     
