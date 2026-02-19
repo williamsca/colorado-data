@@ -8,7 +8,7 @@ library(here)
 library(data.table)
 library(readxl)
 
-CONSTANT_YEAR <- 1998
+CONSTANT_YEAR <- 2000
 
 data_path <- Sys.getenv("DATA_PATH")
 

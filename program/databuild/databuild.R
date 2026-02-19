@@ -137,10 +137,12 @@ dt[, permits_tot_pcap := permits_tot / pop_1980]
 dt[year <= 1982 & val_share_resi != assessed_share_resi]
 
 # high- and low-residential valuation share counties
-median_resi <- median(dt[year == 1980, val_share_resi])
-dt[, resi_group := fifelse(
-    val_share_resi > median_resi, "High", "Low"
+dt_1980 <- dt[year ==1980]
+dt_1980[, resi_group := fifelse(
+    val_share_resi > median(val_share_resi), "High", "Low"
 )]
+
+dt <- merge(dt, dt_1980[, .(county, resi_group)], by = "county", all.x = TRUE)
 
 # construct instrument for the effective tax rate:
 # use variation in residential assessment rate due to the
