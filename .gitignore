@@ -4,6 +4,7 @@ data/census-pop
 data/bogin_doerner_larson_hpi
 
 derived/*.Rds
+derived/*.csv
 
 results/
 
@@ -15,3 +16,5 @@ paper.pdf
 *.bbl
 *.blg
 *.out
+
+.Renviron

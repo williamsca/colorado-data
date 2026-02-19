@@ -73,7 +73,7 @@ dt_resi <- dt[, .(
     tax_rate = mean(tax_rate * 100),
     tax_rate_avg = mean(tax_rate_avg * 100)
 ), by = .(year, resi_group)]
-ggplot(dt_resi, aes(
+ggplot(dt_resi[!is.na(resi_group)], aes(
     x = year, y = tax_rate_avg, color = resi_group,
     group = resi_group)
 ) +
@@ -104,7 +104,7 @@ dt_rev[, revenue_pcap := revenue / pop]
 dt_rev[, val_share_resi := mkt_val_resi / mkt_val_total]
 dt_rev[, assessed_share_resi := assessed_resi / assessed_valuation]
 
-ggplot(dt_rev, aes(
+ggplot(dt_rev[!is.na(resi_group)], aes(
     x = year, y = revenue_pcap, color = resi_group,
     group = resi_group)
 ) +

@@ -37,28 +37,32 @@ dt_pop_1980 <- dt_pop[year == 1980]
 setnames(dt_pop_1980, "pop", "pop_1980")
 
 # HPI
-dt_hpi <- readRDS(here("derived", "hpi.Rds"))
+dt_hpi <- fread(here("derived", "hpi-bdl.csv"))
+
+# building permits
+dt_permits <- readRDS(here("derived", "permits-co.Rds"))
 
 # county FIPS codes
 dt_fips <- fread(
     here("crosswalk", "counties-co.csv"),
     select = c("STATEFP", "COUNTYFP", "COUNTYNAME"))
-dt_fips[, fips := STATEFP * 1000 + COUNTYFP]
+dt_fips[, countyfp := STATEFP * 1000 + COUNTYFP]
 dt_fips[, county := gsub(" County", "", COUNTYNAME)]
 dt_fips <- dt_fips[county != "Broomfield"] # Broomfield was created in 2001
 
 # merge ----
 # balanced panel
-dt <- CJ(fips = dt_fips$fips, year = unique(dt_levies$year))
+dt <- CJ(
+    countyfp = dt_fips$countyfp, year = unique(dt_levies$year))
 
-dt <- merge(dt, dt_fips[, .(fips, county)], by = "fips", all.x = TRUE)
+dt <- merge(dt, dt_fips[, .(countyfp, county)], by = "countyfp", all.x = TRUE)
 
-dt <- merge(dt, dt_pop[, .(year, fips, pop)], by = c("fips", "year"),
+dt <- merge(dt, dt_pop[, .(year, countyfp, pop)], by = c("countyfp", "year"),
     all.x = TRUE)
 if (nrow(dt[is.na(pop)]) != 0) {
     stop("Missing population data for a county.")
 }
-dt <- merge(dt, dt_pop_1980[, .(fips, pop_1980)], by = "fips", all.x = TRUE)
+dt <- merge(dt, dt_pop_1980[, .(countyfp, pop_1980)], by = "countyfp", all.x = TRUE)
 
 dt <- merge(
     dt, dt_levies, by = c("county", "year"),
@@ -79,10 +83,17 @@ dt <- merge(
 dt <- merge(dt, dt_rates, by = "year", all.x = TRUE)
 
 # HPI
-dt <- merge(dt, dt_hpi[, .(fips, year, hpi)], by = c("fips", "year"),
+dt <- merge(dt, dt_hpi[, .(countyfp, year, hpi)], by = c("countyfp", "year"),
     all.x = TRUE)
 
+# building permits
+dt <- merge(dt, dt_permits, by = c("year", "countyfp"), all.x = TRUE)
+
+dt[is.na(permits_tot)]
+
+# clean ----
 setkey(dt, county, year)
+
 
 # sanity checks ----
 dt[, diff := (
@@ -102,7 +113,7 @@ dt_overlap <- dt[year %in% hpi_overlap_years]
 missing_hpi <- dt_overlap[is.na(hpi)]
 if (nrow(missing_hpi) > 0) {
     cat("Counties missing HPI data for overlapping years:\n")
-    print(missing_hpi[, .(county, year, fips)])
+    print(missing_hpi[, .(county, year, countyfp)])
     cat("Total missing HPI observations:", nrow(missing_hpi), "\n")
 }
 
@@ -118,6 +129,9 @@ dt[, mkt_val_other := (assessed_valuation - assessed_resi) / nrar]
 dt[, mkt_val_total := mkt_val_resi + mkt_val_other]
 
 dt[, val_share_resi := mkt_val_resi / mkt_val_total]
+
+# permits per capita
+dt[, permits_tot_pcap := permits_tot / pop_1980]
 
 # TODO: these should be equal
 dt[year <= 1982 & val_share_resi != assessed_share_resi]
