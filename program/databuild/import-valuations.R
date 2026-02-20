@@ -92,6 +92,7 @@ dt_val[county == "Colores", county := "Dolores"]
 dt_val[county == "Fic Blanco", county := "Rio Blanco"]
 dt_val[county == "Itkin", county := "Pitkin"]
 dt_val[county == "Fack", county := "Park"]
+dt_val[county == "Klowa", county := "Kiowa"]
 dt_val[county %in% c("Et Paso", "Ei Paso"), county := "El Paso"]
 
 dt_val[, assessed_share_resi := assessed_resi / assessed_total]

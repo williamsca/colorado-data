@@ -98,7 +98,7 @@ style_tex <- style.tex(
 etable(
     c(iv_fiscal, iv_values, iv_real),
     digits     = 3,
-    fitstat    = c("n", "my", "ivf"),
+    fitstat    = c("n", "r2", "my", "ivf"),
     style.tex  = style_tex,
     notes      = paste(
         "IV: eff. assessment ratio instrumented by the Gallagher instrument",

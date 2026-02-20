@@ -95,10 +95,16 @@ dt[is.na(permits_tot)]
 setkey(dt, county, year)
 
 # filter
-dt[bad_data := max(bad_data), by = .(county)]
+# excludes a handful of counties with huge YoY swings
+# in valuations due to errors in source data
+# (see program/databuild/import-valuations.R for details)
+dt[, bad_data := max(bad_data, na.rm = TRUE), by = .(county)]
 dt <- dt[bad_data == FALSE]
 
 # sanity checks ----
+
+# compare total assessed valuation from county-valuation
+# table to the mill-levy table
 dt[, diff := (
     assessed_valuation - assessed_total) / assessed_valuation]
 if (nrow(dt[abs(diff) >= 0.01]) > 0) {
@@ -109,14 +115,9 @@ dt[diff > 0.01, .(county, year, assessed_valuation, assessed_total, diff)]
 
 dt[, c("diff", "assessed_total") := NULL]
 
-# HPI sanity checks ----
-# Check that all observations in base panel match to an HPI for overlapping years
-hpi_overlap_years <- intersect(unique(dt$year), unique(dt_hpi$year))
-dt_overlap <- dt[year %in% hpi_overlap_years]
+# HPI
 missing_hpi <- dt_overlap[is.na(hpi)]
 if (nrow(missing_hpi) > 0) {
-    cat("Counties missing HPI data for overlapping years:\n")
-    print(missing_hpi[, .(county, year, countyfp)])
     cat("Total missing HPI observations:", nrow(missing_hpi), "\n")
 }
 
@@ -140,7 +141,7 @@ dt[, permits_tot_pcap := permits_tot / pop_1980]
 dt[year <= 1982 & val_share_resi != assessed_share_resi]
 
 # high- and low-residential valuation share counties
-dt_1980 <- dt[year ==1980]
+dt_1980 <- dt[year == 1980]
 dt_1980[, resi_group := fifelse(
     val_share_resi > median(val_share_resi), "High", "Low"
 )]
