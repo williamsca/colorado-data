@@ -5,6 +5,8 @@ import sys
 import subprocess
 from pathlib import Path
 
+PYTHON = sys.executable
+
 def get_annual_report_path(year):
     """Get the path to the annual report PDF for a given year."""
     data_dir = Path("data/annual-reports")
@@ -72,9 +74,9 @@ def process_pages(csv_path):
                             
                             # Call extract_target_table_pdf.py with the page number and suffix
                             cmd = [
-                                "python3", 
-                                "program/databuild/extract_target_table_pdf.py", 
-                                str(annual_report_path), 
+                                PYTHON,
+                                "program/databuild/extract_target_table_pdf.py",
+                                str(annual_report_path),
                                 str(page_num),
                                 suffix,
                                 dir_name,
@@ -91,9 +93,9 @@ def process_pages(csv_path):
                         suffix = chr(97 + i) if len(page_ranges) > 1 else ""
                         
                         cmd = [
-                            "python3", 
-                            "program/databuild/extract_target_table_pdf.py", 
-                            str(annual_report_path), 
+                            PYTHON,
+                            "program/databuild/extract_target_table_pdf.py",
+                            str(annual_report_path),
                             str(page_num),
                             suffix,
                             dir_name,

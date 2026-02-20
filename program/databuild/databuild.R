@@ -94,6 +94,9 @@ dt[is.na(permits_tot)]
 # clean ----
 setkey(dt, county, year)
 
+# filter
+dt[bad_data := max(bad_data), by = .(county)]
+dt <- dt[bad_data == FALSE]
 
 # sanity checks ----
 dt[, diff := (

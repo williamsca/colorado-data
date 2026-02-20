@@ -14,7 +14,7 @@ l_files <- list.files(
     full.names = TRUE
 )
 
-file_path <- l_files[6]
+file_path <- l_files[26]
 
 process_valuation_file <- function(file_path) {
     filename <- basename(file_path)
@@ -27,7 +27,8 @@ process_valuation_file <- function(file_path) {
     dt[, county := str_to_title(str_trim(gsub("\\$|\\*|\\s+$", "", county)))]
 
     dt <- dt[!grepl("(?i)(total|state|average|County)", county)]
-    dt <- dt[!is.na(county)]
+    dt <- dt[!is.na(county) & county != ""]
+    dt <- dt[county != "Toevr3-01"]
 
     v_num <- c("assessed_resi", "assessed_total")
     if (year < 1984) {
@@ -37,7 +38,7 @@ process_valuation_file <- function(file_path) {
     }
 
     dt[, (v_num) := lapply(.SD, function(x) {
-        as.numeric(gsub(",|\\$|\\.|#", "", x))
+        as.numeric(gsub("\\s+.*", "", trimws(gsub(",|\\$|\\.|#", "", x))))
     }), .SDcols = v_num]
     if (between(year, 1984, 1992)) { # TODO: confirm this
         dt[, (v_num) := lapply(.SD, function(x) {
@@ -83,7 +84,7 @@ dt_val[county == "Pueslo", county := "Pueblo"]
 dt_val[county == "Telles", county := "Teller"]
 dt_val[county == "Yum A", county := "Yuma"]
 dt_val[county == "Seoglick", county := "Sedgwick"]
-dt_val[county == "6io Grande", county := "Rio Grande"]
+dt_val[county %in% c("6io Grande", "610 Grande"), county := "Rio Grande"]
 dt_val[county %in% c("Curay", "Curry"), county := "Ouray"]
 dt_val[county == "Ctero", county := "Otero"]
 dt_val[county == "Comejos", county := "Conejos"]
@@ -91,8 +92,7 @@ dt_val[county == "Colores", county := "Dolores"]
 dt_val[county == "Fic Blanco", county := "Rio Blanco"]
 dt_val[county == "Itkin", county := "Pitkin"]
 dt_val[county == "Fack", county := "Park"]
-
-dt_val <- dt_val[county != "Toevr3-01"]
+dt_val[county %in% c("Et Paso", "Ei Paso"), county := "El Paso"]
 
 dt_val[, assessed_share_resi := assessed_resi / assessed_total]
 
@@ -114,9 +114,68 @@ if (uniqueN(dt_val[, .(county, year)]) != nrow(dt_val)) {
     warning("Valuation data contains duplicates.")
 }
 
+# Broomfield county was created in 2001
+dt_val <- dt_val[county != "Broomfield"]
+
 if (nrow(dt_val) != uniqueN(dt_val$county) * uniqueN(dt_val$year)) {
     warning("Valuation data is unbalanced.")
 }
+
+# year-over-year change check ----
+# Flags county-years where any field changes by more than flag_threshold
+# percent relative to the prior year. Large swings typically signal OCR
+# errors (wrong units) or a misapplied scaling multiplier.
+v_chk <- c("assessed_resi", "assessed_total")
+flag_threshold <- 50   # percent; captures large swings
+
+setkey(dt_val, county, year)
+dt_val[, paste0(v_chk, "_lag") := lapply(.SD, shift),
+    .SDcols = v_chk, by = county]
+for (v in v_chk) {
+    dt_val[, paste0(v, "_yoy") :=
+        round(100 * (get(v) - get(paste0(v, "_lag"))) / get(paste0(v, "_lag")), 1)]
+}
+
+v_yoy <- paste0(v_chk, "_yoy")
+dt_val[, is_flagged := Reduce(`|`, lapply(
+    .SD, function(x) !is.na(x) & (abs(x) > flag_threshold | abs(x) == 0)
+)), .SDcols = v_yoy]
+
+dt_flagged <- dt_val[(is_flagged),
+    .(county, year, assessed_resi, assessed_total,
+      assessed_resi_yoy, assessed_total_yoy)]
+
+if (nrow(dt_flagged) > 0) {
+    warning(sprintf(
+        "%d county-year(s) with |YoY change| > %d%% or == 0 in assessed_resi or assessed_total:",
+        nrow(dt_flagged), flag_threshold
+    ))
+    print(dt_flagged)
+}
+
+dt_val[, c(paste0(v_chk, "_lag"), v_yoy, "is_flagged") := NULL]
+
+# Bad data flags ----
+# County-years with confirmed OCR or source errors that cannot be corrected
+# without returning to the original PDFs. Exclude these from analysis.
+bad_data_cases <- data.table(
+    county = c("Elbert",   "Elbert",
+               "El Paso",  "El Paso",
+               "La Plata", "La Plata",
+               "Lake",     "Lake",
+               "Gilpin",
+               "Hinsdale"),
+    year   = c(1994L, 1996L,
+               1994L, 1996L,
+               1994L, 1996L,
+               1994L, 1996L,
+               1992L,
+               1984L)
+)
+dt_val[, bad_data := FALSE]
+dt_val[bad_data_cases, bad_data := TRUE, on = .(county, year)]
+
+cat(sprintf("Bad-data flag set for %d county-year(s).\n", dt_val[bad_data == TRUE, .N]))
 
 # Export ----
 saveRDS(dt_val, file = here("derived", "county-valuations.Rds"))
